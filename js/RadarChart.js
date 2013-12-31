@@ -4,77 +4,63 @@ function drawRadarChart(labels, data, maxValue) {
     var centerX = width  / 2;
     var centerY = height / 2;
     var r = 0.8*(width/2);
+    var colors = ["red", "green", "blue"]; 
 
-    /*
-     i: count of axis
-     func: Math.cos or Math.sin
-     */
-    function getPosition(i, r, func) {
-	var rad = i/labels.length * 2*Math.PI;
-	return r*func(rad - Math.PI/2);
-    }
-    function getPositionX(i, r){return centerX + getPosition(i, r, Math.cos);}
-    function getPositionY(i, r){return centerY + getPosition(i, r, Math.sin);}
-
-    // var maxValue = Math.max.apply(null, Array.prototype.concat.apply([], data));
-
-    // svg
     var svg = d3.select('div.chart')
 	    .append('svg')
 	    .attr('width', width)
 	    .attr('height', height);
-    svg.append("circle")
-	.attr("cx", centerX)
-	.attr("cy", centerY)
-	.attr("r", r)
-    	.style("stroke", "black")
-        .style("fill", "gray")
-	.style("opacity", 0.333);
+
+    var scale = d3.scale.linear()
+	    .domain([0, maxValue]).range([0, r]);
+    var line = d3.svg.line()
+	    .x(function(d, i) { return scale(d) * Math.cos(2*Math.PI/labels.length * i) + centerX; })
+	    .y(function(d, i) { return scale(d) * Math.sin(2*Math.PI/labels.length * i) + centerY; })
+	    .interpolate("linear-closed");
+
+    // grid
+    var grid = new Array(4);
+    for (var i = 0; i < grid.length; i++) {
+	grid[i] = new Array(labels.length);
+	for (var j = 0; j < grid[i].length; j++) {
+	    grid[i][j] = (i+1)/grid.length * maxValue;
+	}
+    }
+    svg.selectAll("path.data")
+	.data(grid).enter()
+	.append("path")
+	.attr("d", function(d, i) { return line(d); })
+	.style("stroke", "gray")
+	.style("stroke-width", 0.5)
+	.style("fill", "none");
 
     // axis
     svg.selectAll("line")
-	.data(labels)
-	.enter().append("line")
-    	.attr("x1", function(d, i){return width/2;})
-	.attr("y1", function(d, i){return height/2;})
-	.attr("x2", function(d, i){return getPositionX(i, r);})
-	.attr("y2", function(d, i){return getPositionY(i, r);})
+	.data(grid[grid.length-1]).enter()
+	.append("line")
+	.attr("x1", function(d, i) { return centerX; })
+	.attr("y1", function(d, i) { return centerY; })
+	.attr("x2", function(d, i) { return r * Math.cos(2*Math.PI/labels.length * i) + centerX; })
+	.attr("y2", function(d, i) { return r * Math.sin(2*Math.PI/labels.length * i) + centerY; })
 	.style("stroke", "gray");
+
     // axis label
-    svg.selectAll("text")
-	.data(labels)
-	.enter().append("text")
-    	.text(function(d){return d;})
-    	.attr("text-anchor", "middle")
-    	.attr("x", function(d, i){return getPositionX(i, 1.1*r);})
-    	.attr("y", function(d, i){return getPositionY(i, 1.1*r);});
-
-    // plot data
-    var colors =  ["red", "green", "blue"];
-    for (var j = data.length-1; 0 <= j; j--) {
-	var g = svg.append("g");
-
-	// path
-	var line = d3.svg.line()
-		.x(function(d, i) { return getPositionX(i, (d/maxValue)*r);})
-		.y(function(d, i) { return getPositionY(i, (d/maxValue)*r);})
-		.interpolate("linear-closed");
-	g.append("path")
-	    .attr("d", line(data[j]))
-	    .style("stroke", colors[j])
-	    .style("stroke-width", 2)
-	    .style("fill", colors[j])
-	    .style("opacity", 0.5);
-
-	// poitn
-	g.selectAll("circle")
-    	    .data(data[j])
-    	    .enter().append("circle").attr("class", "point")
-    	    .attr("cx", function(d, i){return getPositionX(i, (d/maxValue)*r);})
-    	    .attr("cy", function(d, i){return getPositionY(i, (d/maxValue)*r);})
-    	    .attr("r", 3)
-    	    .style("fill", colors[j]);
-    }
+    var axisLabel = svg.selectAll("a")
+	    .data(labels)
+	    .enter()
+	    .append("text")
+            .text(function(d){return d;})
+            .attr("text-anchor", "middle")
+            .attr("x", function(d, i) { return 1.1*r * Math.cos(2*Math.PI/labels.length * i) + centerX; })
+            .attr("y", function(d, i) { return 1.1*r * Math.sin(2*Math.PI/labels.length * i) + centerY; });
+    
+    // data 
+    svg.selectAll("path.data")
+	.data(data).enter()
+	.append("path")
+	.attr("d", function(d, i) { return line(d); })
+	.style("stroke", function(d, i) { return colors[i]; })
+	.style("fill", "none");
 }
 
 $(function() {
